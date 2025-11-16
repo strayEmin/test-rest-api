@@ -5,14 +5,33 @@ import "time"
 type TransactionStatus string
 
 const (
-	TransactionStatusCreated    TransactionStatus = "created"
-	TransactionStatusInProgress TransactionStatus = "in_progress"
-	TransactionStatusCompleted  TransactionStatus = "completed"
-	TransactionStatusCancelled  TransactionStatus = "cancelled"
+	TransactionStatusCreated   TransactionStatus = "created"
+	TransactionStatusInProcess TransactionStatus = "in_process"
+	TransactionStatusCompleted TransactionStatus = "completed"
+	TransactionStatusCancelled TransactionStatus = "cancelled"
 )
 
 func (status TransactionStatus) String() string {
 	return string(status)
+}
+
+var validStatuses = map[string]TransactionStatus{
+	TransactionStatusCreated.String():   TransactionStatusCreated,
+	TransactionStatusInProcess.String(): TransactionStatusInProcess,
+	TransactionStatusCompleted.String(): TransactionStatusCompleted,
+	TransactionStatusCancelled.String(): TransactionStatusCancelled,
+}
+
+func IsTransactionStatus(s string) bool {
+	_, ok := validStatuses[s]
+	return ok
+}
+
+func ToTransactionStatus(s string) TransactionStatus {
+	if st, ok := validStatuses[s]; ok {
+		return st
+	}
+	return ""
 }
 
 type Transaction struct {

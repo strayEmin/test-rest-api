@@ -2,9 +2,12 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"test-task-rest-api/internal/apperrors"
 	"test-task-rest-api/internal/domain"
 	"test-task-rest-api/internal/repo/postgres"
+
+	"github.com/jackc/pgx/v4"
 )
 
 type TransactionRepo struct {
@@ -83,4 +86,75 @@ func (r *TransactionRepo) AllByUserId(ctx context.Context, userId int64) ([]doma
 	}
 
 	return transactionModels, nil
+}
+
+func (r *TransactionRepo) ById(ctx context.Context, userId int64) (domain.TransactionModel, error) {
+	const op = "TransactionRepo.ById"
+	q := `SELECT id, name, description, user_id, status, created_at, updated_at FROM transactions WHERE id = $1`
+
+	transactionModel := domain.TransactionModel{}
+	if err := r.pool.QueryRow(
+		ctx,
+		q,
+		userId,
+	).Scan(
+		&transactionModel.ID,
+		&transactionModel.Name,
+		&transactionModel.Description,
+		&transactionModel.UserID,
+		&transactionModel.Status,
+		&transactionModel.CreatedAt,
+		&transactionModel.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.TransactionModel{}, apperrors.Wrap(op, apperrors.ErrTransactionNotFound)
+		}
+		err = postgres.ParsePgError(err)
+
+		return domain.TransactionModel{}, apperrors.Wrap(op, err)
+	}
+
+	return transactionModel, nil
+}
+
+func (r *TransactionRepo) Update(ctx context.Context, transactionModel domain.TransactionModel) (domain.TransactionModel, error) {
+	const op = "TransactionRepo.Update"
+	q := `
+	UPDATE transactions
+	SET
+		name = $1,
+		description = $2,
+		user_id = $3,
+		status = $4,
+		updated_at = NOW()
+	WHERE id = $5
+	RETURNING id, name, description, user_id, status, created_at, updated_at
+	`
+
+	if err := r.pool.QueryRow(
+		ctx,
+		q,
+		transactionModel.Name,
+		transactionModel.Description,
+		transactionModel.UserID,
+		transactionModel.Status,
+		transactionModel.ID,
+	).Scan(
+		&transactionModel.ID,
+		&transactionModel.Name,
+		&transactionModel.Description,
+		&transactionModel.UserID,
+		&transactionModel.Status,
+		&transactionModel.CreatedAt,
+		&transactionModel.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.TransactionModel{}, apperrors.Wrap(op, apperrors.ErrTransactionNotFound)
+		}
+		err = postgres.ParsePgError(err)
+
+		return domain.TransactionModel{}, apperrors.Wrap(op, err)
+	}
+
+	return transactionModel, nil
 }

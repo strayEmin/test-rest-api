@@ -2,6 +2,9 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"strconv"
+	"test-task-rest-api/internal/apperrors"
 	"test-task-rest-api/internal/domain"
 	"test-task-rest-api/internal/transport/rest/dto"
 	"test-task-rest-api/internal/utils/jwt"
@@ -13,7 +16,7 @@ import (
 type TransactionService interface {
 	Create(ctx context.Context, userId int64, name, description string) (domain.Transaction, error)
 	TransactionsByUserId(ctx context.Context, userId int64) ([]domain.Transaction, error)
-	//UpdateStatus(ctx context.Context, userId, transactionId int64, status domain.TransactionStatus) error
+	UpdateStatus(ctx context.Context, userId, transactionId int64, status domain.TransactionStatus) (domain.Transaction, error)
 }
 
 type TransactionHandler struct {
@@ -80,19 +83,6 @@ func (h *TransactionHandler) Create(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(resp)
 }
 
-//func (h *TransactionHandler) UpdateStatus(c *fiber.Ctx) error {
-//	ctx := c.Context()
-//
-//	claims, err := jwt.ExtractTokenMetadata(c)
-//	if err != nil {
-//		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//			"error": "Token metadata extraction failed",
-//		})
-//	}
-//
-//	req :=
-//}
-
 func (h *TransactionHandler) TransactionsByUserId(c *fiber.Ctx) error {
 	ctx := c.Context()
 
@@ -125,4 +115,70 @@ func (h *TransactionHandler) TransactionsByUserId(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"transactions": resp,
 	})
+}
+
+func (h *TransactionHandler) UpdateStatus(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	claims, err := jwt.ExtractTokenMetadata(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Token metadata extraction failed",
+		})
+	}
+
+	req := dto.TransactionUpdateStatusRequest{}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Cannot parse request",
+		})
+	}
+
+	transactionId, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid id",
+		})
+	}
+
+	if !domain.IsTransactionStatus(req.Status) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid transaction status",
+		})
+	}
+	transactionStatus := domain.ToTransactionStatus(req.Status)
+
+	updatedTransaction, err := h.transactionService.UpdateStatus(ctx, claims.UserID, transactionId, transactionStatus)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrAnotherUsersTransaction) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Status change operation denied: not privileged enough to change the status of this transaction",
+			})
+		}
+		if errors.Is(err, apperrors.ErrTransactionNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Transaction not found",
+			})
+		}
+		if errors.Is(err, apperrors.ErrInvalidTransactionStatusTransition) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Could not update status to " + transactionStatus.String(),
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Cannot update transaction",
+		})
+	}
+
+	resp := dto.TransactionUpdateStatusResponse{
+		ID:          updatedTransaction.ID,
+		Name:        updatedTransaction.Name,
+		Description: updatedTransaction.Description,
+		Status:      updatedTransaction.Status.String(),
+		CreatedAt:   updatedTransaction.CreatedAt,
+		UpdatedAt:   updatedTransaction.UpdatedAt,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(resp)
 }

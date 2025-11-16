@@ -54,13 +54,9 @@ func (h *Handler) initRoutes() {
 	v1.Use(h.newJwtCheckingMiddleware())
 
 	transactions := v1.Group("/transactions")
-	transactions.Get("", h.TransactionHandler.TransactionsByUserId)
-	transactions.Patch("/:id", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"id": c.Params("id"),
-		})
-	})
 	transactions.Post("", h.TransactionHandler.Create)
+	transactions.Get("", h.TransactionHandler.TransactionsByUserId)
+	transactions.Patch("/:id", h.TransactionHandler.UpdateStatus)
 }
 
 func (h *Handler) Init(ctx context.Context) *fiber.App {

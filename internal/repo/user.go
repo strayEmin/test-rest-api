@@ -77,7 +77,7 @@ func (r *UserRepo) ByEmail(ctx context.Context, email string) (domain.UserModel,
 		&userModel.PwdHash,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.UserModel{}, apperrors.ErrUserNotFound
+			return domain.UserModel{}, apperrors.Wrap(op, apperrors.ErrUserNotFound)
 		}
 		err = postgres.ParsePgError(err)
 
