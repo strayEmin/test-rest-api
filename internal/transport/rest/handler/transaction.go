@@ -12,8 +12,8 @@ import (
 
 type TransactionService interface {
 	Create(ctx context.Context, userId int64, name, description string) (domain.Transaction, error)
-	UpdateStatus(ctx context.Context, userId, transactionId int64, status domain.TransactionStatus) error
 	TransactionsByUserId(ctx context.Context, userId int64) ([]domain.Transaction, error)
+	//UpdateStatus(ctx context.Context, userId, transactionId int64, status domain.TransactionStatus) error
 }
 
 type TransactionHandler struct {
@@ -78,4 +78,51 @@ func (h *TransactionHandler) Create(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(resp)
+}
+
+//func (h *TransactionHandler) UpdateStatus(c *fiber.Ctx) error {
+//	ctx := c.Context()
+//
+//	claims, err := jwt.ExtractTokenMetadata(c)
+//	if err != nil {
+//		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//			"error": "Token metadata extraction failed",
+//		})
+//	}
+//
+//	req :=
+//}
+
+func (h *TransactionHandler) TransactionsByUserId(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	claims, err := jwt.ExtractTokenMetadata(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Token metadata extraction failed",
+		})
+	}
+
+	transactions, err := h.transactionService.TransactionsByUserId(ctx, claims.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Cannot get transactions",
+		})
+	}
+
+	resp := make([]dto.TransactionGetResponse, len(transactions))
+	for i, transaction := range transactions {
+		resp[i] = dto.TransactionGetResponse{
+			ID:          transaction.ID,
+			Name:        transaction.Name,
+			Description: transaction.Description,
+			Status:      transaction.Status.String(),
+			CreatedAt:   transaction.CreatedAt,
+			UpdatedAt:   transaction.UpdatedAt,
+		}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"transactions": resp,
+	})
 }

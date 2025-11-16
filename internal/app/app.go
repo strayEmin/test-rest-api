@@ -36,11 +36,13 @@ func (a *App) Run(ctx context.Context) {
 	repos := repo.NewRepo(a.log, pool)
 
 	services := service.NewService(a.cfg, a.log, service.Deps{
-		AuthUserRepo: repos.UserRepo,
+		UserRepo:        repos.UserRepo,
+		TransactionRepo: repos.TransactionRepo,
 	})
 
 	restHandlers := handler.NewHandler(a.cfg, handler.Deps{
-		AuthService: services.AuthService,
+		AuthService:        services.AuthService,
+		TransactionService: services.TransactionService,
 	})
 	restApp := restHandlers.Init(ctx)
 

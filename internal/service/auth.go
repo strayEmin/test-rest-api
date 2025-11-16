@@ -41,7 +41,6 @@ func (s *AuthService) SignUp(ctx context.Context, name, email, password string) 
 		Email:   email,
 		PwdHash: hashedPassword,
 	})
-
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUserAlreadyExists) {
 			return "", apperrors.Wrap(op, apperrors.ErrUserAlreadyExists)
@@ -74,6 +73,7 @@ func (s *AuthService) SignIn(ctx context.Context, email, password string) (strin
 		if errors.Is(err, apperrors.ErrUserNotFound) {
 			return "", apperrors.Wrap(op, apperrors.ErrUserNotFound)
 		}
+		s.logger.Error(op, err)
 
 		return "", apperrors.Wrap(op, err)
 	}
@@ -90,6 +90,7 @@ func (s *AuthService) SignIn(ctx context.Context, email, password string) (strin
 	})
 	if err != nil {
 		s.logger.Error(op, err)
+
 		return "", apperrors.Wrap(op, apperrors.ErrUnsuccesffulTokenGeneration)
 	}
 

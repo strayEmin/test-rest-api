@@ -6,13 +6,15 @@ import (
 )
 
 type Repo struct {
-	Logger   logger.Logger
-	UserRepo *UserRepo
+	Logger          logger.Logger
+	UserRepo        *UserRepo
+	TransactionRepo *TransactionRepo
 }
 
 func NewRepo(logger logger.Logger, pool postgres.AtomicPoolClient) *Repo {
 	return &Repo{
-		Logger:   logger,
-		UserRepo: NewUserRepo(logger, pool),
+		Logger:          logger,
+		UserRepo:        NewUserRepo(pool),
+		TransactionRepo: NewTransactionRepo(pool),
 	}
 }

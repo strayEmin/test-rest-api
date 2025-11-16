@@ -11,20 +11,23 @@ import (
 )
 
 type Deps struct {
-	AuthService AuthService
+	AuthService        AuthService
+	TransactionService TransactionService
 }
 
 type Handler struct {
 	config *config.Config
 	app    *fiber.App
 
-	AuthHandler *AuthHandler
+	AuthHandler        *AuthHandler
+	TransactionHandler *TransactionHandler
 }
 
 func NewHandler(config *config.Config, deps Deps) *Handler {
 	return &Handler{
-		config:      config,
-		AuthHandler: NewAuthHandler(deps.AuthService),
+		config:             config,
+		AuthHandler:        NewAuthHandler(deps.AuthService),
+		TransactionHandler: NewTransactionHandler(deps.TransactionService),
 	}
 }
 
@@ -34,7 +37,7 @@ func (h *Handler) newJwtCheckingMiddleware() fiber.Handler {
 		ContextKey: "jwt",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": err.Error(),
+				"error": "Token skipped, expired, or malformed",
 			})
 		},
 	})
@@ -51,21 +54,13 @@ func (h *Handler) initRoutes() {
 	v1.Use(h.newJwtCheckingMiddleware())
 
 	transactions := v1.Group("/transactions")
-	transactions.Get("", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"error": "transactions.Get not implemented",
-		})
-	})
+	transactions.Get("", h.TransactionHandler.TransactionsByUserId)
 	transactions.Patch("/:id", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"id": c.Params("id"),
 		})
 	})
-	transactions.Post("", func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"error": "transactions.Post not implemented",
-		})
-	})
+	transactions.Post("", h.TransactionHandler.Create)
 }
 
 func (h *Handler) Init(ctx context.Context) *fiber.App {
