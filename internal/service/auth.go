@@ -14,13 +14,17 @@ type AuthUserRepo interface {
 	ByEmail(ctx context.Context, email string) (domain.UserModel, error)
 }
 
+type TokenGenerator interface {
+	GenerateToken(user domain.User) (string, error)
+}
+
 type AuthService struct {
 	logger       logger.Logger
-	tokenService *TokenService
+	tokenService TokenGenerator
 	authUserRepo AuthUserRepo
 }
 
-func NewAuthService(logger logger.Logger, authUserRepo AuthUserRepo, tokenService *TokenService) *AuthService {
+func NewAuthService(logger logger.Logger, authUserRepo AuthUserRepo, tokenService TokenGenerator) *AuthService {
 	return &AuthService{
 		logger:       logger,
 		authUserRepo: authUserRepo,

@@ -6,6 +6,7 @@ import (
 	"test-task-rest-api/internal/apperrors"
 	"test-task-rest-api/internal/domain"
 	"test-task-rest-api/internal/logger"
+	"time"
 )
 
 type TransactionRepo interface {
@@ -31,11 +32,14 @@ func (s *TransactionService) Create(ctx context.Context, userId int64, name, des
 	const op = "transactionService.Create"
 
 	statusDefault := domain.TransactionStatusCreated
+	now := time.Now() // TODO сейчас в репо не используется заданная выше дата
 	transactionModel, err := s.transactionRepo.Create(ctx, domain.TransactionModel{
 		Name:        name,
 		Description: description,
 		UserID:      userId,
 		Status:      statusDefault,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	})
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUserNotFound) {
@@ -115,12 +119,13 @@ func (s *TransactionService) UpdateStatus(ctx context.Context, userId, transacti
 			return domain.Transaction{}, apperrors.Wrap(op, apperrors.ErrInvalidTransactionStatusTransition)
 		}
 	case domain.TransactionStatusInProcess:
-		if newStatus != domain.TransactionStatusCompleted && newStatus != domain.TransactionStatusCancelled {
+		if newStatus != domain.TransactionStatusCompleted {
 			return domain.Transaction{}, apperrors.Wrap(op, apperrors.ErrInvalidTransactionStatusTransition)
 		}
 	}
 
 	transactionModel.Status = newStatus
+	transactionModel.UpdatedAt = time.Now()
 	transactionModel, err = s.transactionRepo.Update(ctx, transactionModel)
 	if err != nil {
 		s.logger.Error(op, err)
